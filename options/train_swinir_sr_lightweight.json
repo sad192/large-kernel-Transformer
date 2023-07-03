@@ -1,0 +1,91 @@
+{
+  "task": "new_test2"     //InceptionBlock_test24_step2_EMA_NoReverse_LKA31_NoDWC3-5_Conv3_x2_IR700   InceptionBlock_test22_step1_EMA_NoReverse_LKA31_NoDWC3-5-21_x2_IR700
+  , "model": "plain" // "plain" | "plain2" if two inputs
+  , "gpu_ids": [0,1]
+  , "dist": false
+  , "scale": 2       // 2 | 3 | 4
+  , "n_channels": 3  // broadcast to "datasets", 1 for grayscale, 3 for color
+  ,"isNeedLoad": false
+    ,"isNeedLoadPretrainedModel": true,  // 加载预训练还是完全训练好的模型
+  "path": {
+
+    "root": "preTrainModels"            // "denoising" | "superresolution" | "dejpeg"
+    , "pretrained_netG": "preTrainModels/x2"      // path of pretrained model. We fine-tune X3/X4 models from X2 model, so that `G_optimizer_lr` and `G_scheduler_milestones` can be halved to save time.
+    , "trained_netG": "preTrainModels/x2/972_G.pth"  // 已经训练好的超分模型
+    , "pretrained_netE": null      // path of pretrained model
+  }
+
+  , "datasets": {
+    "train": {
+      "name": "train_dataset"           // just name
+      , "dataset_type": "swinIR-sr"         // 默认为：swinIR-sr ,训练退化模型时为 sr
+      , "dataroot_H": "/home/yk/Compare_models/YK-master/datasets/IR700/train/train_H"// 606: /home/yk/Compare_models/YK-master/datasets/IR700/train/train_H  sz：/data/yk/Compare_models/YK-master/datasets/IR700/train_H
+      , "dataroot_L": ""              // /home/yk/KAIR/trainsets/trainL/DIV2K_train_LR_bicubic/X4
+
+      , "H_size": [128]                // 128/192/256/512./[480,800] [480,640]cvc 默认 [256] [96] [128] [192]
+
+      , "dataloader_shuffle": true
+      , "dataloader_num_workers": 4
+      , "dataloader_batch_size": 8      //4  deg:2  Total batch size =8x8=64 in SwinIR
+    }
+    , "test": {
+      "name": "test_dataset"            //name 之后这直接放测试集
+      , "dataset_type": "swinIR-sr"         // 默认为：swinIR-sr ,训练退化模型时为 sr
+      , "dataroot_H": "/home/yk/Compare_models/YK-master/datasets/results-C"  // 606: /home/yk/Compare_models/YK-master/datasets/IR700/train/valid_H   sz: /data/yk/Compare_models/YK-master/datasets/IR700/valid_H
+      , "dataroot_L": ""   // /home/qin/yk/datasets/BSD100/image_SRF_4/LR  datasets/bicubicResults_C_x4  /home/yk/Compare_models/YK-master/datasets/BSD100/image_SRF_4/LR
+
+    }
+  }
+
+  , "netG": {
+    "isTrain": true  // train or eval
+    , "net_type": "hybridsr" //默认为 "allcnn" "hybridsr" "hat" "grl" "rrdb" "unetinception" "hybridunetir" "swinunetir" "unetir" "shufflenet" "newsr" "hybrid" "hybridDepth" "bsrn" "rfdn" "rcan" "han" "imdtn" "hnct" "pan" "deg" "nlsn" "swinir" "edsr" "imdn"
+    , "upscale": 2                      // 2 | 3  | 4
+    , "in_chans": 3
+    , "img_size": 64  // LR size 64  32
+    , "patch_size": 1
+    , "window_size": 8
+    , "img_range": 1.0
+    , "depths": [6, 6, 6, 6]
+    , "embed_dim": 60  // 60
+    , "num_heads": [6, 6, 6, 6]
+    , "mlp_ratio": 2
+    , "upsampler": "pixelshuffle"        // "pixelshuffle" | 默认为："pixelshuffledirect" | "nearest+conv" | null
+    , "resi_connection": "1conv"        // "1conv" | "3conv"
+
+    , "init_type": "default" // 默认为 default xavier_uniform
+  }
+
+  , "train": {
+  "task_name": "notask", // 值为“deg时”：训练概率退化分布网络 swinunet swinireen
+    "G_lossfn_type": "l1"               // "l1" preferred | "l2sum" | "l2" | "ssim" | "charbonnier"
+    , "G_lossfn_weight": 1.0            // default
+    , "E_lossfn_weight": 0.1       // 默认为0.1
+    , "P_lossfn_weight": 0.1
+    , "E_lossfn_type": "edge"   // "fft" "edge"
+    , "e_loss": false         // 是否开启边缘损失
+    , "p_loss": false       // 是否开启感知损失
+    , "E_decay": 0                  // Exponential Moving Average for netG: set 0 to disable; default setting 0.999
+
+    , "G_optimizer_type": "adam"        // fixed, adam is enough Adan
+    , "G_optimizer_lr": 5e-4            // learning rate 2e-4  5e-4  Cosine => 1e-5
+    , "G_optimizer_wd": 0               // weight decay, default 0
+    , "G_optimizer_clipgrad": null      // unused
+    , "G_optimizer_reuse": true         //
+    ,  "NeedOptim": true   // use CosineAnnealingWarmRestarts (true)
+
+    , "G_scheduler_type": "MultiStepLR" // CosineAnnealingWarmRestarts "MultiStepLR" is enough 'CosineAnnealingWarmRestarts'
+    , "G_scheduler_milestones": [400, 800, 1000] //[200, 400, 600, 800, 1000] [400, 800, 1200, 1600, 2000] 200, 400, 600, 800, 1000
+    , "G_scheduler_gamma": 0.5
+
+    , "G_regularizer_orthstep": null    // unused
+    , "G_regularizer_clipstep": null    // unused
+
+    , "G_param_strict": true
+    , "E_param_strict": true
+
+    , "checkpoint_test": 2000           // for testing 5000 2000
+    , "checkpoint_save": 2000           // for saving model 5000 2000
+    , "checkpoint_print": 100           // val 125 / 88
+  }
+}
